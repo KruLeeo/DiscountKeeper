@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "178701694338",
+    "project_id": "discountkeeper-2be8e",
+    "storage_bucket": "discountkeeper-2be8e.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:178701694338:android:0029c0ecacdeb4bb308b9b",
+        "android_client_info": {
+          "package_name": "com.example.discountkeeper"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvl2USuVV81BiEVisBHCpt0Z-53xyHafk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
