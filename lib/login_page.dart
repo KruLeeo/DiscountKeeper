@@ -15,7 +15,8 @@ class LoginPageState extends State<LoginPage> {
   final TextEditingController _loginController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _isLoginMode = true; // Переменная для отслеживания режима (вход/регистрация)
+  bool _isLoginMode = true;
+  bool _obscurePassword = true; // Переменная для отслеживания режима (вход/регистрация)
 
   @override
   void dispose() {
@@ -70,7 +71,8 @@ class LoginPageState extends State<LoginPage> {
         );
         await _checkUserRole();
       } else {
-        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
           email: email,
           password: password,
         );
@@ -100,8 +102,10 @@ class LoginPageState extends State<LoginPage> {
   }
 
   // Метод для добавления пользователя в Firestore
-  Future<void> _addUserToFirestore(String email, String hashedPassword, String uid) async {
-    CollectionReference customers = FirebaseFirestore.instance.collection('customers');
+  Future<void> _addUserToFirestore(String email, String hashedPassword,
+      String uid) async {
+    CollectionReference customers = FirebaseFirestore.instance.collection(
+        'customers');
 
     try {
       await customers.doc(uid).set({
@@ -120,7 +124,8 @@ class LoginPageState extends State<LoginPage> {
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      DocumentSnapshot doc = await FirebaseFirestore.instance.collection('customers').doc(user.uid).get();
+      DocumentSnapshot doc = await FirebaseFirestore.instance.collection(
+          'customers').doc(user.uid).get();
       if (doc.exists) {
         String role = doc['role'];
         if (role == 'admin') {
@@ -168,7 +173,8 @@ class LoginPageState extends State<LoginPage> {
             controller: emailController,
             decoration: const InputDecoration(
               hintText: 'Введите ваш email',
-              hintStyle: TextStyle(color: Colors.white54), // Полупрозрачный белый цвет для подсказки
+              hintStyle: TextStyle(color: Colors
+                  .white54), // Полупрозрачный белый цвет для подсказки
             ),
             keyboardType: TextInputType.emailAddress,
             style: const TextStyle(color: Colors.white), // Белый текст
@@ -198,12 +204,15 @@ class LoginPageState extends State<LoginPage> {
                 }
 
                 try {
-                  await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                  await FirebaseAuth.instance.sendPasswordResetEmail(
+                      email: email);
                   Navigator.of(context).pop(); // Закрываем диалоговое окно
-                  _showErrorSnackBar('Инструкции по восстановлению пароля отправлены на $email.');
+                  _showErrorSnackBar(
+                      'Инструкции по восстановлению пароля отправлены на $email.');
                 } catch (e) {
                   Navigator.of(context).pop(); // Закрываем диалоговое окно
-                  _showErrorSnackBar('Ошибка при отправке письма: ${e.toString()}');
+                  _showErrorSnackBar(
+                      'Ошибка при отправке письма: ${e.toString()}');
                 }
               },
             ),
@@ -215,8 +224,14 @@ class LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final width = MediaQuery
+        .of(context)
+        .size
+        .width;
+    final isKeyboardVisible = MediaQuery
+        .of(context)
+        .viewInsets
+        .bottom > 0;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -304,7 +319,8 @@ class LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 32),
                     _buildTextField(_loginController, 'Логин (Email)'),
                     const SizedBox(height: 16),
-                    _buildTextField(_passwordController, 'Пароль', obscureText: true),
+                    _buildTextField(
+                        _passwordController, 'Пароль', obscureText: true),
                     const SizedBox(height: 24),
                     GestureDetector(
                       onTap: () {
@@ -327,7 +343,8 @@ class LoginPageState extends State<LoginPage> {
                         ),
                         child: Center(
                           child: _isLoading
-                              ? const CircularProgressIndicator(color: Colors.black)
+                              ? const CircularProgressIndicator(
+                              color: Colors.black)
                               : Text(
                             _isLoginMode ? 'Войти' : 'Регистрация',
                             style: const TextStyle(
@@ -344,7 +361,9 @@ class LoginPageState extends State<LoginPage> {
                     TextButton(
                       onPressed: _toggleMode,
                       child: Text(
-                        _isLoginMode ? 'Создать аккаунт' : 'Уже есть аккаунт? Войти',
+                        _isLoginMode
+                            ? 'Создать аккаунт'
+                            : 'Уже есть аккаунт? Войти',
                         style: const TextStyle(
                           fontFamily: 'Montserrat',
                           fontWeight: FontWeight.w500,
@@ -354,7 +373,8 @@ class LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     TextButton(
-                      onPressed: _showPasswordResetDialog, // Вызов диалога восстановления пароля
+                      onPressed: _showPasswordResetDialog,
+                      // Вызов диалога восстановления пароля
                       child: const Text(
                         'Забыли пароль?',
                         style: TextStyle(
@@ -392,7 +412,7 @@ class LoginPageState extends State<LoginPage> {
       ),
       child: TextField(
         controller: controller,
-        obscureText: obscureText,
+        obscureText: hintText == 'Пароль' ? _obscurePassword : obscureText,
         style: const TextStyle(
           fontFamily: 'Montserrat',
           fontWeight: FontWeight.w500,
@@ -408,9 +428,22 @@ class LoginPageState extends State<LoginPage> {
             fontSize: 14,
             color: Color.fromRGBO(172, 172, 172, 0.65),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15), // Устанавливаем вертикальный отступ
+          suffixIcon: hintText == 'Пароль'
+              ? IconButton(
+            icon: Icon(
+              _obscurePassword ? Icons.visibility : Icons.visibility_off,
+              color: Colors.white70,
+            ),
+            onPressed: () {
+              setState(() {
+                _obscurePassword = !_obscurePassword;
+              });
+            },
+          )
+              : null,
         ),
       ),
     );
   }
-}
+  }

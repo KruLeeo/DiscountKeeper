@@ -190,7 +190,35 @@ class HomePageState extends State<HomePage> {
     'Развлечения и досуг',
     'Туризм и путешествия'
   ];
+  Future<void> deleteCard(String imageUrl) async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        // Найдем документ с нужным `frontImageUrl` и `userEmail`
+        QuerySnapshot snapshot = await FirebaseFirestore.instance
+            .collection('cards')
+            .where('userEmail', isEqualTo: user.email)
+            .where('frontImageUrl', isEqualTo: imageUrl)
+            .get();
 
+        if (snapshot.docs.isNotEmpty) {
+          await snapshot.docs.first.reference.delete();
+          // Удаляем карту из списка локально
+          setState(() {
+            _frontImageUrls.remove(imageUrl);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Карта удалена')),
+          );
+        }
+      } catch (e) {
+        print('Ошибка при удалении карты: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ошибка при удалении карты')),
+        );
+      }
+    }
+  }
 
 
   @override
@@ -209,22 +237,35 @@ class HomePageState extends State<HomePage> {
   void showCardActionsMenu(BuildContext context, String imageUrl) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.black,
       builder: (BuildContext context) {
         return Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Редактировать карту'),
+              leading: const Icon(
+                Icons.edit,
+                color: Color(0xFFB9F240),
+              ),
+              title: const Text(
+                'Редактировать карту',
+                style: TextStyle(color: Colors.white),
+              ),
               onTap: () {
                 // Логика редактирования карты
                 Navigator.pop(context);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete),
-              title: const Text('Удалить карту'),
+              leading: const Icon(
+                Icons.delete,
+                color: Color(0xFFB9F240),
+              ),
+              title: const Text(
+                'Удалить карту',
+                style: TextStyle(color: Colors.white),
+              ),
               onTap: () {
-                // Логика удаления карты
+                deleteCard(imageUrl); // Вызов удаления карты
                 Navigator.pop(context);
               },
             ),
