@@ -15,7 +15,8 @@ class LoginPageState extends State<LoginPage> {
   final TextEditingController _loginController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _isLoginMode = true; // Переменная для отслеживания режима (вход/регистрация)
+  bool _isLoginMode = true;
+  bool _obscurePassword = true; // Переменная для отслеживания режима (вход/регистрация)
 
   @override
   void dispose() {
@@ -63,18 +64,15 @@ class LoginPageState extends State<LoginPage> {
 
     try {
       if (_isLoginMode) {
-        // Выход из текущего аккаунта перед новой попыткой входа
         await FirebaseAuth.instance.signOut();
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
           password: password,
         );
-
-        // Получаем роль пользователя
         await _checkUserRole();
-
       } else {
-        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
           email: email,
           password: password,
         );
@@ -104,16 +102,17 @@ class LoginPageState extends State<LoginPage> {
   }
 
   // Метод для добавления пользователя в Firestore
-  Future<void> _addUserToFirestore(String email, String hashedPassword, String uid) async {
-    CollectionReference customers = FirebaseFirestore.instance.collection('customers');
+  Future<void> _addUserToFirestore(String email, String hashedPassword,
+      String uid) async {
+    CollectionReference customers = FirebaseFirestore.instance.collection(
+        'customers');
 
     try {
-      // Добавляем нового пользователя с UID и ролью user
       await customers.doc(uid).set({
         'email': email,
         'hashedPassword': hashedPassword,
-        'createdAt': FieldValue.serverTimestamp(), // Добавляем метку времени
-        'role': 'user', // Изначально назначаем роль user
+        'createdAt': FieldValue.serverTimestamp(),
+        'role': 'user',
       });
     } catch (e) {
       _showErrorSnackBar('Ошибка при сохранении данных: ${e.toString()}');
@@ -125,14 +124,13 @@ class LoginPageState extends State<LoginPage> {
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      DocumentSnapshot doc = await FirebaseFirestore.instance.collection('customers').doc(user.uid).get();
+      DocumentSnapshot doc = await FirebaseFirestore.instance.collection(
+          'customers').doc(user.uid).get();
       if (doc.exists) {
         String role = doc['role'];
         if (role == 'admin') {
-          // Если админ - перенаправляем на админскую страницу
           Navigator.pushNamed(context, '/admin');
         } else {
-          // Если не админ - на обычную страницу
           Navigator.pushNamed(context, '/home');
         }
       }
@@ -153,17 +151,94 @@ class LoginPageState extends State<LoginPage> {
     });
   }
 
+  // Метод для вызова диалога восстановления пароля
+// Метод для вызова диалога восстановления пароля
+  Future<void> _showPasswordResetDialog() async {
+    TextEditingController emailController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.black, // Черный фон
+          title: const Text(
+            'Восстановление пароля',
+            style: TextStyle(
+              color: Colors.white, // Белый цвет текста заголовка
+              fontFamily: 'Montserrat',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: TextField(
+            controller: emailController,
+            decoration: const InputDecoration(
+              hintText: 'Введите ваш email',
+              hintStyle: TextStyle(color: Colors
+                  .white54), // Полупрозрачный белый цвет для подсказки
+            ),
+            keyboardType: TextInputType.emailAddress,
+            style: const TextStyle(color: Colors.white), // Белый текст
+          ),
+          actions: <Widget>[
+            // Кнопка "Отмена"
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFB9F240), // Цвет текста кнопки
+              ),
+              child: const Text('Отмена'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Закрываем диалоговое окно
+              },
+            ),
+            // Кнопка "Отправить"
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFB9F240), // Цвет текста кнопки
+              ),
+              child: const Text('Отправить'),
+              onPressed: () async {
+                String email = emailController.text.trim();
+                if (email.isEmpty || !_isEmailValid(email)) {
+                  _showErrorSnackBar('Введите корректный email.');
+                  return;
+                }
+
+                try {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(
+                      email: email);
+                  Navigator.of(context).pop(); // Закрываем диалоговое окно
+                  _showErrorSnackBar(
+                      'Инструкции по восстановлению пароля отправлены на $email.');
+                } catch (e) {
+                  Navigator.of(context).pop(); // Закрываем диалоговое окно
+                  _showErrorSnackBar(
+                      'Ошибка при отправке письма: ${e.toString()}');
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final width = MediaQuery
+        .of(context)
+        .size
+        .width;
+    final isKeyboardVisible = MediaQuery
+        .of(context)
+        .viewInsets
+        .bottom > 0;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           Container(
-            color: Colors.black, // Задний фон просто черный
+            color: Colors.black,
           ),
           Positioned(
             top: 100,
@@ -244,27 +319,23 @@ class LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 32),
                     _buildTextField(_loginController, 'Логин (Email)'),
                     const SizedBox(height: 16),
-                    _buildTextField(_passwordController, 'Пароль', obscureText: true),
+                    _buildTextField(
+                        _passwordController, 'Пароль', obscureText: true),
                     const SizedBox(height: 24),
                     GestureDetector(
                       onTap: () {
                         FocusScope.of(context).unfocus(); // Скрыть клавиатуру
                         _submitLogin();
                       },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                      child: Container(
                         width: width * 0.85,
                         height: 53,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFB9F240), Color(0xFFA9E020)], // Градиент для кнопки
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFFB9F240),
+                          borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withOpacity(0.4),
                               offset: const Offset(0, 4),
                               blurRadius: 8,
                             ),
@@ -272,7 +343,8 @@ class LoginPageState extends State<LoginPage> {
                         ),
                         child: Center(
                           child: _isLoading
-                              ? const CircularProgressIndicator(color: Colors.black)
+                              ? const CircularProgressIndicator(
+                              color: Colors.black)
                               : Text(
                             _isLoginMode ? 'Войти' : 'Регистрация',
                             style: const TextStyle(
@@ -289,8 +361,23 @@ class LoginPageState extends State<LoginPage> {
                     TextButton(
                       onPressed: _toggleMode,
                       child: Text(
-                        _isLoginMode ? 'Создать аккаунт' : 'Уже есть аккаунт? Войти',
+                        _isLoginMode
+                            ? 'Создать аккаунт'
+                            : 'Уже есть аккаунт? Войти',
                         style: const TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _showPasswordResetDialog,
+                      // Вызов диалога восстановления пароля
+                      child: const Text(
+                        'Забыли пароль?',
+                        style: TextStyle(
                           fontFamily: 'Montserrat',
                           fontWeight: FontWeight.w500,
                           fontSize: 14,
@@ -308,7 +395,6 @@ class LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Метод для создания полей ввода
   Widget _buildTextField(TextEditingController controller, String hintText, {bool obscureText = false}) {
     return Container(
       width: MediaQuery.of(context).size.width * 0.85,
@@ -326,7 +412,7 @@ class LoginPageState extends State<LoginPage> {
       ),
       child: TextField(
         controller: controller,
-        obscureText: obscureText,
+        obscureText: hintText == 'Пароль' ? _obscurePassword : obscureText,
         style: const TextStyle(
           fontFamily: 'Montserrat',
           fontWeight: FontWeight.w500,
@@ -342,9 +428,22 @@ class LoginPageState extends State<LoginPage> {
             fontSize: 14,
             color: Color.fromRGBO(172, 172, 172, 0.65),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15), // Устанавливаем вертикальный отступ
+          suffixIcon: hintText == 'Пароль'
+              ? IconButton(
+            icon: Icon(
+              _obscurePassword ? Icons.visibility : Icons.visibility_off,
+              color: Colors.white70,
+            ),
+            onPressed: () {
+              setState(() {
+                _obscurePassword = !_obscurePassword;
+              });
+            },
+          )
+              : null,
         ),
       ),
     );
   }
-}
+  }
