@@ -220,6 +220,41 @@ class HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> editCardDetails(BuildContext context, String imageUrl, String newName) async {
+    try {
+      // Получаем текущего пользователя
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Находим документ карты по imageUrl и email
+        QuerySnapshot snapshot = await FirebaseFirestore.instance
+            .collection('cards')
+            .where('userEmail', isEqualTo: user.email)
+            .where('frontImageUrl', isEqualTo: imageUrl)
+            .get();
+
+        if (snapshot.docs.isNotEmpty) {
+          // Обновляем данные в Firestore
+          await snapshot.docs.first.reference.update({
+            'cardName': newName,
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Карта успешно обновлена')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Карта не найдена')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Ошибка при редактировании карты: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ошибка при обновлении карты')),
+      );
+    }
+  }
+
 
   @override
   void initState() {
@@ -251,8 +286,8 @@ class HomePageState extends State<HomePage> {
                 style: TextStyle(color: Colors.white),
               ),
               onTap: () {
-                // Логика редактирования карты
-                Navigator.pop(context);
+                Navigator.pop(context); // Закрываем меню
+                showEditCardDialog(context, imageUrl); // Открываем диалог редактирования
               },
             ),
             ListTile(
@@ -268,6 +303,78 @@ class HomePageState extends State<HomePage> {
                 deleteCard(imageUrl); // Вызов удаления карты
                 Navigator.pop(context);
               },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void showEditCardDialog(BuildContext context, String imageUrl) async {
+    // Инициализация контроллера для названия карты
+    final _cardNameController = TextEditingController();
+
+    // Загружаем текущие данные карты
+    await FirebaseFirestore.instance
+        .collection('cards')
+        .where('frontImageUrl', isEqualTo: imageUrl)
+        .get()
+        .then((QuerySnapshot snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        var cardData = snapshot.docs.first.data() as Map<String, dynamic>;
+        _cardNameController.text = cardData['cardName'] ?? '';
+      }
+    });
+
+    // Показываем диалог редактирования
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.black,
+          title: const Text(
+            'Редактировать карту',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _cardNameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Название карты',
+                  labelStyle: TextStyle(color: Color(0xFFB9F240)),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFB9F240)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFB9F240)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Закрываем диалог
+              },
+              child: const Text(
+                'Отмена',
+                style: TextStyle(color: Color(0xFFB9F240)),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                // Логика сохранения изменений
+                await editCardDetails(context, imageUrl, _cardNameController.text);
+                Navigator.pop(context); // Закрываем диалог
+              },
+              child: const Text(
+                'Сохранить',
+                style: TextStyle(color: Color(0xFFB9F240)),
+              ),
             ),
           ],
         );
