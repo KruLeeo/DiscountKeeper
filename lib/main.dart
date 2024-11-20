@@ -4,6 +4,7 @@ import 'login_page.dart';
 import 'profile.dart';
 import 'admin_page.dart';
 import 'add_card_page.dart';
+import 'family_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
         '/admin': (context) => const AdminPage(),
         '/profile': (context) => const ProfilePage(),
         '/addCard': (context) => const AddCardPage(),
+        '/family': (context) => FamilyPage(),
       },
     );
   }
@@ -622,7 +624,9 @@ class HomePageState extends State<HomePage> {
                       color: Colors.grey,
                     ),
                     iconSize: 28,
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/family');
+                    },
                   ),
                   IconButton(
                     icon: const Icon(
