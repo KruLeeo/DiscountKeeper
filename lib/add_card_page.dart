@@ -60,13 +60,15 @@ class _AddCardPageState extends State<AddCardPage> {
       return;
     }
 
+    // Переходим на главную страницу сразу после нажатия
+    Navigator.of(context).pop();
+
     try {
       String frontImageUrl = await _uploadImage(_frontImage!, 'front');
       String backImageUrl = await _uploadImage(_backImage!, 'back');
 
       // Получаем текущего пользователя
       User? user = FirebaseAuth.instance.currentUser;
-
       if (user == null || user.email == null) {
         throw Exception('Пользователь не авторизован или email недоступен');
       }
@@ -80,11 +82,17 @@ class _AddCardPageState extends State<AddCardPage> {
         'userEmail': user.email, // Добавляем адрес электронной почты
       });
 
-      _showSnackBar('Карта успешно добавлена!');
+      // Отображаем уведомление после добавления карты
+      Future.delayed(Duration.zero, () {
+        _showSnackBar('Карта успешно добавлена!');
+      });
+
       _clearFields();
     } catch (e) {
       _logger.severe('Ошибка при добавлении карты: $e');
-      _showSnackBar('Ошибка при добавлении карты: $e');
+      Future.delayed(Duration.zero, () {
+        _showSnackBar('Ошибка при добавлении карты: $e');
+      });
     }
   }
 

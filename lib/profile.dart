@@ -27,7 +27,7 @@ class _ProfilePageState extends State<ProfilePage> {
   int selectedIndex = 2;
 
   double profileFieldSpacing = 25.0;
-  double actionButtonSpacing = 20.0;
+  double actionButtonSpacing = 10.0;
   double topPadding = 40.0;
   double profileFieldHeight = 37.0; // Высота полей профиля
 
@@ -42,11 +42,14 @@ class _ProfilePageState extends State<ProfilePage> {
     if (user != null) {
       setState(() {
         email = user.email ?? '';
-        creationDate = user.metadata.creationTime?.toLocal().toString().split(' ')[0] ?? 'Неизвестно';
+        creationDate =
+            user.metadata.creationTime?.toLocal().toString().split(' ')[0] ??
+                'Неизвестно';
       });
 
       // Загружаем данные из Firebase каждый раз при входе
-      DocumentSnapshot doc = await FirebaseFirestore.instance.collection('customers').doc(user.uid).get();
+      DocumentSnapshot doc = await FirebaseFirestore.instance.collection(
+          'customers').doc(user.uid).get();
       if (doc.exists && doc.data() != null) {
         final data = doc.data() as Map<String, dynamic>;
         setState(() {
@@ -69,7 +72,8 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _saveLocalData(String nickname, String profileImageUrl, int bonus) async {
+  Future<void> _saveLocalData(String nickname, String profileImageUrl,
+      int bonus) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('nickname', nickname);
     await prefs.setString('profileImageUrl', profileImageUrl);
@@ -96,7 +100,9 @@ class _ProfilePageState extends State<ProfilePage> {
           imageUrl = await _uploadImage(_selectedImage!);
         }
 
-        await FirebaseFirestore.instance.collection('customers').doc(user.uid).set({
+        await FirebaseFirestore.instance.collection('customers')
+            .doc(user.uid)
+            .set({
           'cusname': nickname,
           'profileimg': imageUrl ?? profileImageUrl,
           'bonus': userBonus, // Сохраняем бонусы
@@ -128,7 +134,9 @@ class _ProfilePageState extends State<ProfilePage> {
     if (user != null) {
       try {
         // Обновляем в Firestore
-        await FirebaseFirestore.instance.collection('customers').doc(user.uid).update({
+        await FirebaseFirestore.instance.collection('customers')
+            .doc(user.uid)
+            .update({
           'bonus': userBonus,
         });
 
@@ -151,7 +159,9 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final ref = FirebaseStorage.instance.ref().child('profile_images').child('${user.uid}.jpg');
+        final ref = FirebaseStorage.instance.ref()
+            .child('profile_images')
+            .child('${user.uid}.jpg');
         await ref.putFile(image);
         return await ref.getDownloadURL();
       }
@@ -333,7 +343,9 @@ class _ProfilePageState extends State<ProfilePage> {
         radius: 75,
         backgroundImage: _selectedImage != null
             ? FileImage(_selectedImage!)
-            : (profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null) as ImageProvider<Object>?,
+            : (profileImageUrl.isNotEmpty
+            ? NetworkImage(profileImageUrl)
+            : null) as ImageProvider<Object>?,
         child: _selectedImage == null && profileImageUrl.isEmpty
             ? const Icon(Icons.camera_alt, size: 40, color: Colors.white70)
             : null,
@@ -415,22 +427,25 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildSaveButton() {
-    return ElevatedButton(
-      onPressed: _saveProfile,
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-        backgroundColor: const Color(0xFFB9F240),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
+    return Padding(
+      padding: const EdgeInsets.only(top: 0), // Добавляем отступ сверху
+      child: ElevatedButton(
+        onPressed: _saveProfile,
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          backgroundColor: const Color(0xFFB9F240),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25),
+          ),
         ),
-      ),
-      child: const Text(
-        'Сохранить изменения',
-        style: TextStyle(
-          color: Colors.black,
-          fontFamily: 'Montserrat',
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
+        child: const Text(
+          'Сохранить изменения',
+          style: TextStyle(
+            color: Colors.black,
+            fontFamily: 'Montserrat',
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
         ),
       ),
     );

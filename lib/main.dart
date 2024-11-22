@@ -4,6 +4,7 @@ import 'login_page.dart';
 import 'profile.dart';
 import 'admin_page.dart';
 import 'add_card_page.dart';
+import 'family_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
         '/admin': (context) => const AdminPage(),
         '/profile': (context) => const ProfilePage(),
         '/addCard': (context) => const AddCardPage(),
+        '/family': (context) => FamilyPage(),
       },
     );
   }
@@ -190,7 +192,70 @@ class HomePageState extends State<HomePage> {
     'Развлечения и досуг',
     'Туризм и путешествия'
   ];
+  Future<void> deleteCard(String imageUrl) async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        // Найдем документ с нужным `frontImageUrl` и `userEmail`
+        QuerySnapshot snapshot = await FirebaseFirestore.instance
+            .collection('cards')
+            .where('userEmail', isEqualTo: user.email)
+            .where('frontImageUrl', isEqualTo: imageUrl)
+            .get();
 
+        if (snapshot.docs.isNotEmpty) {
+          await snapshot.docs.first.reference.delete();
+          // Удаляем карту из списка локально
+          setState(() {
+            _frontImageUrls.remove(imageUrl);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Карта удалена')),
+          );
+        }
+      } catch (e) {
+        print('Ошибка при удалении карты: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ошибка при удалении карты')),
+        );
+      }
+    }
+  }
+
+  Future<void> editCardDetails(BuildContext context, String imageUrl, String newName) async {
+    try {
+      // Получаем текущего пользователя
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Находим документ карты по imageUrl и email
+        QuerySnapshot snapshot = await FirebaseFirestore.instance
+            .collection('cards')
+            .where('userEmail', isEqualTo: user.email)
+            .where('frontImageUrl', isEqualTo: imageUrl)
+            .get();
+
+        if (snapshot.docs.isNotEmpty) {
+          // Обновляем данные в Firestore
+          await snapshot.docs.first.reference.update({
+            'cardName': newName,
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Карта успешно обновлена')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Карта не найдена')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Ошибка при редактировании карты: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ошибка при обновлении карты')),
+      );
+    }
+  }
 
 
   @override
@@ -209,24 +274,109 @@ class HomePageState extends State<HomePage> {
   void showCardActionsMenu(BuildContext context, String imageUrl) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.black,
       builder: (BuildContext context) {
         return Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Редактировать карту'),
+              leading: const Icon(
+                Icons.edit,
+                color: Color(0xFFB9F240),
+              ),
+              title: const Text(
+                'Редактировать карту',
+                style: TextStyle(color: Colors.white),
+              ),
               onTap: () {
-                // Логика редактирования карты
-                Navigator.pop(context);
+                Navigator.pop(context); // Закрываем меню
+                showEditCardDialog(context, imageUrl); // Открываем диалог редактирования
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete),
-              title: const Text('Удалить карту'),
+              leading: const Icon(
+                Icons.delete,
+                color: Color(0xFFB9F240),
+              ),
+              title: const Text(
+                'Удалить карту',
+                style: TextStyle(color: Colors.white),
+              ),
               onTap: () {
-                // Логика удаления карты
+                deleteCard(imageUrl); // Вызов удаления карты
                 Navigator.pop(context);
               },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void showEditCardDialog(BuildContext context, String imageUrl) async {
+    // Инициализация контроллера для названия карты
+    final _cardNameController = TextEditingController();
+
+    // Загружаем текущие данные карты
+    await FirebaseFirestore.instance
+        .collection('cards')
+        .where('frontImageUrl', isEqualTo: imageUrl)
+        .get()
+        .then((QuerySnapshot snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        var cardData = snapshot.docs.first.data() as Map<String, dynamic>;
+        _cardNameController.text = cardData['cardName'] ?? '';
+      }
+    });
+
+    // Показываем диалог редактирования
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.black,
+          title: const Text(
+            'Редактировать карту',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _cardNameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Название карты',
+                  labelStyle: TextStyle(color: Color(0xFFB9F240)),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFB9F240)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFB9F240)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Закрываем диалог
+              },
+              child: const Text(
+                'Отмена',
+                style: TextStyle(color: Color(0xFFB9F240)),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                // Логика сохранения изменений
+                await editCardDetails(context, imageUrl, _cardNameController.text);
+                Navigator.pop(context); // Закрываем диалог
+              },
+              child: const Text(
+                'Сохранить',
+                style: TextStyle(color: Color(0xFFB9F240)),
+              ),
             ),
           ],
         );
@@ -308,14 +458,8 @@ class HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery
-        .of(context)
-        .size
-        .width;
-    final height = MediaQuery
-        .of(context)
-        .size
-        .height;
+    final width = MediaQuery.of(context).size.width;
+    final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -348,7 +492,6 @@ class HomePageState extends State<HomePage> {
             child: Container(
               width: 340,
               height: 45,
-              // Увеличиваем высоту для более гармоничного размещения текста
               decoration: BoxDecoration(
                 color: const Color.fromRGBO(172, 172, 172, 0.29),
                 borderRadius: BorderRadius.circular(10),
@@ -367,25 +510,22 @@ class HomePageState extends State<HomePage> {
                     Expanded(
                       child: TextField(
                         onChanged: (value) {
-                          searchCardName = value; // Update search name
+                          searchCardName = value;
                         },
-                        style: const TextStyle(
-                          color: Colors.white, // Белый цвет текста
-                        ),
+                        style: const TextStyle(color: Colors.white),
                         decoration: const InputDecoration(
                           hintText: 'Поиск по названию карты',
                           hintStyle: TextStyle(
                             color: Color.fromRGBO(172, 172, 172, 0.65),
                           ),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                              vertical: 10), // Регулируем отступы сверху и снизу
+                          contentPadding: EdgeInsets.symmetric(vertical: 10),
                         ),
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.search, color: Color(0xFFB9F240)),
-                      onPressed: _searchCards, // Trigger search
+                      onPressed: _searchCards,
                     ),
                   ],
                 ),
@@ -401,15 +541,14 @@ class HomePageState extends State<HomePage> {
               items: categories.map((String category) {
                 return DropdownMenuItem<String>(
                   value: category,
-                  child: Text(
-                      category, style: const TextStyle(color: Colors.white)),
+                  child: Text(category, style: const TextStyle(color: Colors.white)),
                 );
               }).toList(),
               onChanged: (String? newValue) {
                 setState(() {
                   selectedCategory = newValue!;
                 });
-                _searchCards(); // Обновляем поиск при изменении категории
+                _searchCards();
               },
               dropdownColor: Colors.black,
               iconEnabledColor: const Color(0xFFB9F240),
@@ -437,56 +576,6 @@ class HomePageState extends State<HomePage> {
               child: Text(
                 'Карты не найдены.',
                 style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ),
-          // Bottom navigation bar
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 98,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black,
-                    Colors.transparent
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.home,
-                      color: Color(0xFFB9F240),
-                    ),
-                    iconSize: 28,
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.group_add,
-                      color: Colors.grey,
-                    ),
-                    iconSize: 28,
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.account_circle,
-                      color: Colors.grey,
-                    ),
-                    iconSize: 28,
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/profile');
-                    },
-                  ),
-                ],
               ),
             ),
           ),
@@ -546,6 +635,22 @@ class HomePageState extends State<HomePage> {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.black,
+        selectedItemColor: const Color(0xFFB9F240),
+        unselectedItemColor: Colors.grey,
+        currentIndex: 0,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
+          BottomNavigationBarItem(icon: Icon(Icons.group_add), label: 'Поделиться'),
+          BottomNavigationBarItem(icon: Icon(Icons.account_circle), label: 'Профиль'),
+        ],
+        onTap: (index) {
+          if (index == 0) Navigator.pushNamed(context, '/home');
+          if (index == 1) Navigator.pushNamed(context, '/family');
+          if (index == 2) Navigator.pushNamed(context, '/profile');
+        },
       ),
     );
   }
