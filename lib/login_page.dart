@@ -3,6 +3,8 @@ import 'package:crypto/crypto.dart'; // Для хеширования парол
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,14 +16,18 @@ class LoginPage extends StatefulWidget {
 class LoginPageState extends State<LoginPage> {
   final TextEditingController _loginController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController(); // Контроллер для подтверждения пароля
   bool _isLoading = false;
   bool _isLoginMode = true;
   bool _obscurePassword = true; // Переменная для отслеживания режима (вход/регистрация)
+  bool _obscureConfirmPassword = true; // Переменная для скрытия/показа подтверждения пароля
+  bool _isAgreementAccepted = false; // Переменная для отслеживания согласия с пользовательским соглашением
 
   @override
   void dispose() {
     _loginController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose(); // Очистка контроллера подтверждения пароля
     super.dispose();
   }
 
@@ -37,6 +43,11 @@ class LoginPageState extends State<LoginPage> {
     String pattern = r'^[^@]+@[^@]+\.[^@]+';
     RegExp regex = RegExp(pattern);
     return regex.hasMatch(email);
+  }
+
+  // Проверка совпадения паролей
+  bool _arePasswordsMatching() {
+    return _passwordController.text == _confirmPasswordController.text;
   }
 
   Future<void> _submitLogin() async {
@@ -58,6 +69,12 @@ class LoginPageState extends State<LoginPage> {
       return;
     }
 
+    // Проверка на совпадение паролей
+    if (!_isLoginMode && !_arePasswordsMatching()) {
+      _showErrorSnackBar('Пароли не совпадают.');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -71,6 +88,11 @@ class LoginPageState extends State<LoginPage> {
         );
         await _checkUserRole();
       } else {
+        if (!_isAgreementAccepted) {
+          _showErrorSnackBar('Пожалуйста, примите пользовательское соглашение.');
+          return;
+        }
+
         UserCredential userCredential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(
           email: email,
@@ -152,7 +174,6 @@ class LoginPageState extends State<LoginPage> {
   }
 
   // Метод для вызова диалога восстановления пароля
-// Метод для вызова диалога восстановления пароля
   Future<void> _showPasswordResetDialog() async {
     TextEditingController emailController = TextEditingController();
 
@@ -180,7 +201,6 @@ class LoginPageState extends State<LoginPage> {
             style: const TextStyle(color: Colors.white), // Белый текст
           ),
           actions: <Widget>[
-            // Кнопка "Отмена"
             TextButton(
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFFB9F240), // Цвет текста кнопки
@@ -190,7 +210,6 @@ class LoginPageState extends State<LoginPage> {
                 Navigator.of(context).pop(); // Закрываем диалоговое окно
               },
             ),
-            // Кнопка "Отправить"
             TextButton(
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFFB9F240), // Цвет текста кнопки
@@ -224,17 +243,9 @@ class LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery
-        .of(context)
-        .size
-        .width;
-    final isKeyboardVisible = MediaQuery
-        .of(context)
-        .viewInsets
-        .bottom > 0;
-
     return Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false, // Отключаем сдвиг содержимого при появлении клавиатуры
       body: Stack(
         children: [
           Container(
@@ -286,107 +297,199 @@ class LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          Center(
+          Positioned(
+            top: 200,
+            left: 20,
+            right: 20,
             child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    if (!isKeyboardVisible) ...[
-                      Text(
-                        _isLoginMode ? 'Введите логин и пароль' : 'Регистрация',
-                        style: const TextStyle(
-                          fontFamily: 'Montserrat',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 28,
+              reverse: true,
+              child: Column(
+                children: [
+                  // Заголовок страницы
+                  Text(
+                    _isLoginMode ? 'Авторизация' : 'Регистрация',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      color: Color(0xFFB9F240),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Поле ввода email
+                  TextField(
+                    controller: _loginController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      labelStyle: TextStyle(color: Colors.white),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Поле ввода пароля
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Пароль',
+                      labelStyle: const TextStyle(color: Colors.white),
+                      enabledBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                           color: Colors.white,
                         ),
-                        textAlign: TextAlign.center,
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _isLoginMode ? 'чтобы войти' : 'чтобы создать аккаунт',
-                        style: const TextStyle(
-                          fontFamily: 'Montserrat',
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                          color: Colors.white70,
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Поле ввода подтверждения пароля (только для регистрации)
+                  if (!_isLoginMode) ...[
+                    TextField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Подтверждение пароля',
+                        labelStyle: const TextStyle(color: Colors.white),
+                        enabledBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white),
                         ),
-                        textAlign: TextAlign.center,
+                        focusedBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
                       ),
-                    ],
-                    const SizedBox(height: 32),
-                    _buildTextField(_loginController, 'Логин (Email)'),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                        _passwordController, 'Пароль', obscureText: true),
-                    const SizedBox(height: 24),
-                    GestureDetector(
-                      onTap: () {
-                        FocusScope.of(context).unfocus(); // Скрыть клавиатуру
-                        _submitLogin();
-                      },
-                      child: Container(
-                        width: width * 0.85,
-                        height: 53,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFB9F240),
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.4),
-                              offset: const Offset(0, 4),
-                              blurRadius: 8,
-                            ),
-                          ],
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Чекбокс согласия с пользовательским соглашением
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _isAgreementAccepted,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              _isAgreementAccepted = value ?? false;
+                            });
+                          },
+                          activeColor: const Color(0xFFB9F240),
                         ),
-                        child: Center(
-                          child: _isLoading
-                              ? const CircularProgressIndicator(
-                              color: Colors.black)
-                              : Text(
-                            _isLoginMode ? 'Войти' : 'Регистрация',
-                            style: const TextStyle(
-                              fontFamily: 'Montserrat',
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                              color: Colors.black,
+                        // Внутри вашего Expanded
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'Я согласен с ',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                TextSpan(
+                                  text: 'пользовательским соглашением',
+                                  style: TextStyle(color: Colors.blue), // Цвет текста ссылки
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () async {
+                                      // Открываем ссылку на пользовательское соглашение
+                                      const url = 'https://vk.com/nyankrultepes'; // Укажите здесь свою ссылку
+                                      final Uri uri = Uri.parse(url); // Преобразуем строку в Uri
+
+                                      try {
+                                        // Проверяем, можно ли открыть URL
+                                        if (await canLaunchUrl(uri)) {
+                                          await launchUrl(uri); // Открываем ссылку
+                                        } else {
+                                          print('Не удалось открыть ссылку');
+                                          _showErrorSnackBar('Не удалось открыть ссылку.');
+                                        }
+                                      } catch (e) {
+                                        print('Ошибка при попытке открыть ссылку: $e');
+                                        _showErrorSnackBar('Ошибка при открытии ссылки: $e');
+                                      }
+                                    },
+                                ),
+                              ],
                             ),
                           ),
-                        ),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // Кнопка отправки формы
+                  _isLoading
+                      ? const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFFB9F240)),
+                  )
+                      : ElevatedButton(
+                    onPressed: _submitLogin,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB9F240),
+                    ),
+                    child: Text(_isLoginMode ? 'Войти' : 'Зарегистрироваться'),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Ссылки на переключение между режимами
+                  TextButton(
+                    onPressed: _toggleMode,
+                    child: Text(
+                      _isLoginMode
+                          ? 'Не зарегистрированы? Регистрация'
+                          : 'Уже есть аккаунт? Вход',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: _toggleMode,
-                      child: Text(
-                        _isLoginMode
-                            ? 'Создать аккаунт'
-                            : 'Уже есть аккаунт? Войти',
-                        style: const TextStyle(
-                          fontFamily: 'Montserrat',
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                  ),
+                  if (_isLoginMode) ...[
                     TextButton(
                       onPressed: _showPasswordResetDialog,
-                      // Вызов диалога восстановления пароля
                       child: const Text(
                         'Забыли пароль?',
                         style: TextStyle(
-                          fontFamily: 'Montserrat',
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
                           color: Colors.white,
+                          decoration: TextDecoration.underline,
                         ),
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
             ),
           ),
@@ -394,56 +497,4 @@ class LoginPageState extends State<LoginPage> {
       ),
     );
   }
-
-  Widget _buildTextField(TextEditingController controller, String hintText, {bool obscureText = false}) {
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.85,
-      height: 53,
-      decoration: BoxDecoration(
-        color: const Color.fromRGBO(172, 172, 172, 0.29),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            offset: const Offset(0, 4),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: hintText == 'Пароль' ? _obscurePassword : obscureText,
-        style: const TextStyle(
-          fontFamily: 'Montserrat',
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-          color: Colors.white,
-        ),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            fontFamily: 'Montserrat',
-            fontWeight: FontWeight.w500,
-            fontSize: 14,
-            color: Color.fromRGBO(172, 172, 172, 0.65),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15), // Устанавливаем вертикальный отступ
-          suffixIcon: hintText == 'Пароль'
-              ? IconButton(
-            icon: Icon(
-              _obscurePassword ? Icons.visibility : Icons.visibility_off,
-              color: Colors.white70,
-            ),
-            onPressed: () {
-              setState(() {
-                _obscurePassword = !_obscurePassword;
-              });
-            },
-          )
-              : null,
-        ),
-      ),
-    );
-  }
-  }
+}

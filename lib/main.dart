@@ -458,14 +458,8 @@ class HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery
-        .of(context)
-        .size
-        .width;
-    final height = MediaQuery
-        .of(context)
-        .size
-        .height;
+    final width = MediaQuery.of(context).size.width;
+    final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -498,7 +492,6 @@ class HomePageState extends State<HomePage> {
             child: Container(
               width: 340,
               height: 45,
-              // Увеличиваем высоту для более гармоничного размещения текста
               decoration: BoxDecoration(
                 color: const Color.fromRGBO(172, 172, 172, 0.29),
                 borderRadius: BorderRadius.circular(10),
@@ -517,25 +510,22 @@ class HomePageState extends State<HomePage> {
                     Expanded(
                       child: TextField(
                         onChanged: (value) {
-                          searchCardName = value; // Update search name
+                          searchCardName = value;
                         },
-                        style: const TextStyle(
-                          color: Colors.white, // Белый цвет текста
-                        ),
+                        style: const TextStyle(color: Colors.white),
                         decoration: const InputDecoration(
                           hintText: 'Поиск по названию карты',
                           hintStyle: TextStyle(
                             color: Color.fromRGBO(172, 172, 172, 0.65),
                           ),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                              vertical: 10), // Регулируем отступы сверху и снизу
+                          contentPadding: EdgeInsets.symmetric(vertical: 10),
                         ),
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.search, color: Color(0xFFB9F240)),
-                      onPressed: _searchCards, // Trigger search
+                      onPressed: _searchCards,
                     ),
                   ],
                 ),
@@ -551,15 +541,14 @@ class HomePageState extends State<HomePage> {
               items: categories.map((String category) {
                 return DropdownMenuItem<String>(
                   value: category,
-                  child: Text(
-                      category, style: const TextStyle(color: Colors.white)),
+                  child: Text(category, style: const TextStyle(color: Colors.white)),
                 );
               }).toList(),
               onChanged: (String? newValue) {
                 setState(() {
                   selectedCategory = newValue!;
                 });
-                _searchCards(); // Обновляем поиск при изменении категории
+                _searchCards();
               },
               dropdownColor: Colors.black,
               iconEnabledColor: const Color(0xFFB9F240),
@@ -587,58 +576,6 @@ class HomePageState extends State<HomePage> {
               child: Text(
                 'Карты не найдены.',
                 style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ),
-          // Bottom navigation bar
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 98,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black,
-                    Colors.transparent
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.home,
-                      color: Color(0xFFB9F240),
-                    ),
-                    iconSize: 28,
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.group_add,
-                      color: Colors.grey,
-                    ),
-                    iconSize: 28,
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/family');
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.account_circle,
-                      color: Colors.grey,
-                    ),
-                    iconSize: 28,
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/profile');
-                    },
-                  ),
-                ],
               ),
             ),
           ),
@@ -698,6 +635,22 @@ class HomePageState extends State<HomePage> {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.black,
+        selectedItemColor: const Color(0xFFB9F240),
+        unselectedItemColor: Colors.grey,
+        currentIndex: 0,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
+          BottomNavigationBarItem(icon: Icon(Icons.group_add), label: 'Поделиться'),
+          BottomNavigationBarItem(icon: Icon(Icons.account_circle), label: 'Профиль'),
+        ],
+        onTap: (index) {
+          if (index == 0) Navigator.pushNamed(context, '/home');
+          if (index == 1) Navigator.pushNamed(context, '/family');
+          if (index == 2) Navigator.pushNamed(context, '/profile');
+        },
       ),
     );
   }

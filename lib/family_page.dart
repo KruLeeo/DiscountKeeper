@@ -6,24 +6,26 @@ import 'package:firebase_auth/firebase_auth.dart';
 class FullImagePage extends StatelessWidget {
   final String imageUrl;
 
-  FullImagePage({required this.imageUrl});
+  const FullImagePage({super.key, required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Чёрный фон для всего Scaffold
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Полное изображение', style: TextStyle(color: Colors.white)), // Белый цвет текста
-        backgroundColor: Colors.black, // Чёрный фон для AppBar
+        title: const Text('Полное изображение', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.black,
       ),
       body: Center(
-        child: Image.network(imageUrl), // Отображаем полное изображение
+        child: Image.network(imageUrl),
       ),
     );
   }
 }
 
 class FamilyPage extends StatefulWidget {
+  const FamilyPage({super.key});
+
   @override
   _FamilyPageState createState() => _FamilyPageState();
 }
@@ -38,13 +40,13 @@ class _FamilyPageState extends State<FamilyPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Черный фон для всего Scaffold
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black, // Черный фон для AppBar
-        automaticallyImplyLeading: false, // Убираем стрелочку назад
+        backgroundColor: Colors.black,
+        automaticallyImplyLeading: false,
         title: const Text(
           'Семейный доступ',
-          style: TextStyle(color: Colors.white), // Белый цвет для текста
+          style: TextStyle(color: Colors.white),
         ),
       ),
       body: SingleChildScrollView(
@@ -112,9 +114,9 @@ class _FamilyPageState extends State<FamilyPage> {
                           onChanged: (bool? value) {
                             setState(() {
                               if (value == true) {
-                                selectedCards.add(card.id); // Добавляем карту в список выбранных
+                                selectedCards.add(card.id);
                               } else {
-                                selectedCards.remove(card.id); // Убираем карту из списка
+                                selectedCards.remove(card.id);
                               }
                             });
                           },
@@ -129,10 +131,10 @@ class _FamilyPageState extends State<FamilyPage> {
             Center(
               child: ElevatedButton(
                 style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.all(const Color(0xFFB9F240)),
+                  backgroundColor: WidgetStateProperty.all(const Color(0xFFB9F240)),
                 ),
                 onPressed: selectedCards.isEmpty
-                    ? null  // Кнопка неактивна, если нет выбранных карт
+                    ? null
                     : () async {
                   String friendEmail = emailController.text.trim();
 
@@ -143,7 +145,6 @@ class _FamilyPageState extends State<FamilyPage> {
                     return;
                   }
 
-                  // Отправляем запросы на доступ для каждой выбранной карты
                   for (String cardId in selectedCards) {
                     await FirebaseFirestore.instance.collection('accessRequests').add({
                       'ownerEmail': currentUserEmail,
@@ -154,7 +155,7 @@ class _FamilyPageState extends State<FamilyPage> {
                   }
 
                   emailController.clear();
-                  selectedCards.clear(); // Очищаем список выбранных карт
+                  selectedCards.clear();
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Запросы отправлены')),
@@ -166,7 +167,7 @@ class _FamilyPageState extends State<FamilyPage> {
                 ),
               ),
             ),
-            const Divider(height: 32, thickness: 2, color: Colors.white60), // 60% прозрачность
+            const Divider(height: 32, thickness: 2, color: Colors.white60),
 
             // Просмотр входящих запросов
             const Text(
@@ -205,20 +206,25 @@ class _FamilyPageState extends State<FamilyPage> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.check, color: Colors.green),
-                            onPressed: () {
-                              FirebaseFirestore.instance
-                                  .collection('accessRequests')
-                                  .doc(request.id)
-                                  .update({'status': 'approved'});
+                            onPressed: () async {
+                              var cardId = request['cardId'];
+                              var ownerEmail = request['ownerEmail'];
+
+                              await FirebaseFirestore.instance.collection('accessRequests').doc(request.id).update({
+                                'status': 'approved',
+                              });
+
+                              await FirebaseFirestore.instance.collection('cards').doc(cardId).update({
+                                'sharedWith': FieldValue.arrayUnion([currentUserEmail]),
+                              });
                             },
                           ),
                           IconButton(
                             icon: const Icon(Icons.close, color: Colors.red),
                             onPressed: () {
-                              FirebaseFirestore.instance
-                                  .collection('accessRequests')
-                                  .doc(request.id)
-                                  .update({'status': 'rejected'});
+                              FirebaseFirestore.instance.collection('accessRequests').doc(request.id).update({
+                                'status': 'rejected',
+                              });
                             },
                           ),
                         ],
@@ -228,13 +234,12 @@ class _FamilyPageState extends State<FamilyPage> {
                 );
               },
             ),
-            const Divider(height: 32, thickness: 2, color: Colors.white60), // 60% прозрачность
+            const Divider(height: 32, thickness: 2, color: Colors.white60),
 
-            Center(
-              child: Text(
-                'Карты с доступом:',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
+            // Карты с доступом
+            const Text(
+              'Карты с доступом:',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
             ),
             const SizedBox(height: 8),
             FutureBuilder(
@@ -257,6 +262,9 @@ class _FamilyPageState extends State<FamilyPage> {
                   itemBuilder: (context, index) {
                     var card = cards[index];
 
+                    // Проверка, является ли текущий пользователь владельцем карты
+                    bool isOwner = card['userEmail'] == currentUserEmail;
+
                     return Card(
                       elevation: 3,
                       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -265,8 +273,18 @@ class _FamilyPageState extends State<FamilyPage> {
                         leading: Image.network(card['frontImageUrl']),
                         title: Text(card['cardName'], style: const TextStyle(color: Colors.white)),
                         subtitle: Text(card['category'], style: const TextStyle(color: Colors.white)),
+                        trailing: isOwner
+                            ? IconButton(
+                          icon: const Icon(Icons.visibility_off, color: Colors.white),
+                          onPressed: () async {
+                            // Скрытие карты только для владельца
+                            await FirebaseFirestore.instance.collection('cards').doc(card.id).update({
+                              'hiddenFor': FieldValue.arrayUnion([currentUserEmail]),
+                            });
+                          },
+                        )
+                            : null,  // Если текущий пользователь не владелец, кнопка скрытия не отображается
                         onTap: () {
-                          // Переходим на экран с полным изображением
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -283,84 +301,34 @@ class _FamilyPageState extends State<FamilyPage> {
           ],
         ),
       ),
-      // Нижняя панель навигации
-      bottomNavigationBar: Positioned(
-        bottom: 0,
-        left: 0,
-        right: 0,
-        child: Container(
-          height: 98,
-          decoration: const BoxDecoration(
-            color: Colors.black,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.home,
-                  color: Colors.grey,
-                ),
-                iconSize: 28,
-                onPressed: () {
-                  Navigator.pushNamed(context, '/home');
-                },
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.group_add,
-                  color: Color(0xFFB9F240),
-                ),
-                iconSize: 28,
-                onPressed: () {
-                  Navigator.pushNamed(context, '/family');
-                },
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.account_circle,
-                  color: Colors.grey,
-                ),
-                iconSize: 28,
-                onPressed: () {
-                  Navigator.pushNamed(context, '/profile');
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+    bottomNavigationBar: BottomNavigationBar(
+    backgroundColor: Colors.black,
+    selectedItemColor: const Color(0xFFB9F240),
+    unselectedItemColor: Colors.grey,
+    currentIndex: 1, // Указываем текущую страницу ("Поделиться")
+    items: const [
+    BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
+    BottomNavigationBarItem(icon: Icon(Icons.group_add), label: 'Поделиться'),
+    BottomNavigationBarItem(icon: Icon(Icons.account_circle), label: 'Профиль'),
+    ],
+    onTap: (index) {
+    if (index == 0) Navigator.pushNamed(context, '/home');
+    if (index == 1) Navigator.pushNamed(context, '/family');
+    if (index == 2) Navigator.pushNamed(context, '/profile');
+    },
+    ),
     );
   }
 
-  // Функция получения карт пользователя
+  // Функция для получения карт пользователя
   Future<List<DocumentSnapshot>> fetchUserCards() async {
-    var userCards = await FirebaseFirestore.instance
-        .collection('cards')
-        .where('userEmail', isEqualTo: currentUserEmail)
-        .get();
-
-    return userCards.docs;
+    var userCardsQuery = await FirebaseFirestore.instance.collection('cards').where('userEmail', isEqualTo: currentUserEmail).get();
+    return userCardsQuery.docs;
   }
 
-  // Функция получения карт с доступом
+  // Функция для получения карт, которыми поделились с пользователем
   Future<List<DocumentSnapshot>> fetchSharedCards() async {
-    var approvedRequests = await FirebaseFirestore.instance
-        .collection('accessRequests')
-        .where('friendEmail', isEqualTo: currentUserEmail)
-        .where('status', isEqualTo: 'approved')
-        .get();
-
-    List<String> ownerEmails =
-    approvedRequests.docs.map((doc) => doc['ownerEmail'] as String).toList();
-
-    if (ownerEmails.isEmpty) return [];
-
-    var cards = await FirebaseFirestore.instance
-        .collection('cards')
-        .where('userEmail', whereIn: ownerEmails)
-        .get();
-
-    return cards.docs;
+    var sharedCardsQuery = await FirebaseFirestore.instance.collection('cards').where('sharedWith', arrayContains: currentUserEmail).get();
+    return sharedCardsQuery.docs;
   }
 }
