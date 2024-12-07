@@ -5,9 +5,10 @@ import 'profile.dart';
 import 'admin_page.dart';
 import 'add_card_page.dart';
 import 'family_page.dart';
+import 'card_details_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -37,7 +38,14 @@ class MyApp extends StatelessWidget {
         '/admin': (context) => const AdminPage(),
         '/profile': (context) => const ProfilePage(),
         '/addCard': (context) => const AddCardPage(),
-        '/family': (context) => FamilyPage(),
+        '/family': (context) => const FamilyPage(),
+        '/cardDetails': (context) {
+      final cardId = ModalRoute
+          .of(context)!
+          .settings
+          .arguments as String;
+      return CardDetailsPage(cardId: cardId);
+    }
       },
     );
   }
@@ -174,6 +182,7 @@ class _AuthCheckState extends State<AuthCheck> {
 class HomePageState extends State<HomePage> {
   int currentIndex = 0;
   List<String> _frontImageUrls = [];
+  List<String> _cardIds = [];
   bool isLoading = true;
 
   // Search parameters
@@ -192,6 +201,7 @@ class HomePageState extends State<HomePage> {
     'Развлечения и досуг',
     'Туризм и путешествия'
   ];
+
   Future<void> deleteCard(String imageUrl) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -222,7 +232,8 @@ class HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> editCardDetails(BuildContext context, String imageUrl, String newName) async {
+  Future<void> editCardDetails(BuildContext context, String imageUrl,
+      String newName) async {
     try {
       // Получаем текущего пользователя
       User? user = FirebaseAuth.instance.currentUser;
@@ -280,20 +291,6 @@ class HomePageState extends State<HomePage> {
           children: [
             ListTile(
               leading: const Icon(
-                Icons.edit,
-                color: Color(0xFFB9F240),
-              ),
-              title: const Text(
-                'Редактировать карту',
-                style: TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                Navigator.pop(context); // Закрываем меню
-                showEditCardDialog(context, imageUrl); // Открываем диалог редактирования
-              },
-            ),
-            ListTile(
-              leading: const Icon(
                 Icons.delete,
                 color: Color(0xFFB9F240),
               ),
@@ -334,10 +331,6 @@ class HomePageState extends State<HomePage> {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.black,
-          title: const Text(
-            'Редактировать карту',
-            style: TextStyle(color: Colors.white),
-          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -370,7 +363,8 @@ class HomePageState extends State<HomePage> {
             TextButton(
               onPressed: () async {
                 // Логика сохранения изменений
-                await editCardDetails(context, imageUrl, _cardNameController.text);
+                await editCardDetails(
+                    context, imageUrl, _cardNameController.text);
                 Navigator.pop(context); // Закрываем диалог
               },
               child: const Text(
@@ -427,19 +421,22 @@ class HomePageState extends State<HomePage> {
       // Получаем документы
       QuerySnapshot querySnapshot = await query.get();
       List<String> frontImages = [];
+      List<String> cardIds = []; // Новый список для хранения cardId
 
       for (var doc in querySnapshot.docs) {
         var data = doc.data() as Map<String, dynamic>;
 
-        // Получаем frontImageUrl для каждой карты
+        // Получаем frontImageUrl и cardId для каждой карты
         if (data.containsKey('frontImageUrl')) {
           String imageUrl = data['frontImageUrl'];
           frontImages.add(imageUrl);
+          cardIds.add(doc.id); // Используем ID документа как cardId
         }
       }
 
       setState(() {
         _frontImageUrls = frontImages; // Обновляем изображения карт
+        _cardIds = cardIds; // Обновляем список cardId
         isLoading = false; // Завершаем загрузку
       });
     } catch (e) {
@@ -450,16 +447,16 @@ class HomePageState extends State<HomePage> {
     }
   }
 
-  void _onPageChanged(int index) {
-    setState(() {
-      currentIndex = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final height = MediaQuery.of(context).size.height;
+    final width = MediaQuery
+        .of(context)
+        .size
+        .width;
+    final height = MediaQuery
+        .of(context)
+        .size
+        .height;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -541,7 +538,8 @@ class HomePageState extends State<HomePage> {
               items: categories.map((String category) {
                 return DropdownMenuItem<String>(
                   value: category,
-                  child: Text(category, style: const TextStyle(color: Colors.white)),
+                  child: Text(
+                      category, style: const TextStyle(color: Colors.white)),
                 );
               }).toList(),
               onChanged: (String? newValue) {
@@ -556,8 +554,8 @@ class HomePageState extends State<HomePage> {
           ),
           // Card images from Firebase
           Positioned(
-            top: 200,
-            bottom: 98,
+            top: 250,
+            bottom: 40,
             left: 0,
             right: 0,
             child: isLoading
@@ -565,10 +563,9 @@ class HomePageState extends State<HomePage> {
                 : _frontImageUrls.isNotEmpty
                 ? PageView.builder(
               itemCount: _frontImageUrls.length,
-              onPageChanged: _onPageChanged,
               itemBuilder: (context, index) {
                 return Center(
-                  child: buildCardFromUrl(_frontImageUrls[index]),
+                  child: buildCardFromUrl(_frontImageUrls[index], _cardIds[index]),
                 );
               },
             )
@@ -643,8 +640,10 @@ class HomePageState extends State<HomePage> {
         currentIndex: 0,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
-          BottomNavigationBarItem(icon: Icon(Icons.group_add), label: 'Поделиться'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_circle), label: 'Профиль'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.group_add), label: 'Поделиться'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.account_circle), label: 'Профиль'),
         ],
         onTap: (index) {
           if (index == 0) Navigator.pushNamed(context, '/home');
@@ -655,14 +654,13 @@ class HomePageState extends State<HomePage> {
     );
   }
 
-  Widget buildCardFromUrl(String imageUrl) {
+  Widget buildCardFromUrl(String imageUrl, String cardId) {
     return GestureDetector(
       onTap: () {
-        // Открытие страницы с деталями карты
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CardDetailsPage(imageUrl: imageUrl),
+            builder: (context) => CardDetailsPage(cardId: cardId),
           ),
         );
       },
@@ -689,49 +687,6 @@ class HomePageState extends State<HomePage> {
           ],
         ),
       ),
-    );
-  }
-}
-
-// New page for card details
-class CardDetailsPage extends StatelessWidget {
-  final String imageUrl;
-
-  const CardDetailsPage({super.key, required this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Детали карты'),
-        backgroundColor: Colors.black,
-      ),
-      body: Center(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 300,
-              height: 450,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                image: DecorationImage(
-                  image: NetworkImage(imageUrl),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Additional information
-            const Text(
-              'Детали о карте',
-              style: TextStyle(fontSize: 18, color: Colors.white),
-            ),
-          ],
-        ),
-      ),
-      backgroundColor: Colors.black,
     );
   }
 }

@@ -42,15 +42,53 @@ class _AddCardPageState extends State<AddCardPage> {
   }
 
   Future<void> _pickImage(bool isFront) async {
-    final XFile? pickedImage = await _picker.pickImage(source: ImageSource.camera);
-    if (pickedImage != null) {
-      setState(() {
-        if (isFront) {
-          _frontImage = pickedImage;
-        } else {
-          _backImage = pickedImage;
-        }
-      });
+    // Показываем диалог для выбора источника (камера или галерея)
+    final ImageSource? source = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.black, // Черный фон для диалога
+          title: const Text(
+            'Выберите источник изображения',
+            style: TextStyle(color: Colors.white), // Белый текст заголовка
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, ImageSource.camera); // Камера
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFB9F240), // Цвет кнопки
+              ),
+              child: const Text('Камера'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, ImageSource.gallery); // Галерея
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFB9F240), // Цвет кнопки
+              ),
+              child: const Text('Галерея'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Если выбран источник, продолжаем выбор изображения
+    if (source != null) {
+      final XFile? pickedImage = await _picker.pickImage(source: source);
+
+      if (pickedImage != null) {
+        setState(() {
+          if (isFront) {
+            _frontImage = pickedImage;
+          } else {
+            _backImage = pickedImage;
+          }
+        });
+      }
     }
   }
 
@@ -232,6 +270,7 @@ class _AddCardPageState extends State<AddCardPage> {
       decoration: const InputDecoration(
         labelText: 'Категория',
         border: OutlineInputBorder(),
+        labelStyle: TextStyle(color: Colors.white),
         fillColor: Color(0xFF2C2C2C),
         filled: true,
       ),

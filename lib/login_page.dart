@@ -413,13 +413,13 @@ class LoginPageState extends State<LoginPage> {
                           child: RichText(
                             text: TextSpan(
                               children: [
-                                TextSpan(
+                                const TextSpan(
                                   text: 'Я согласен с ',
                                   style: TextStyle(color: Colors.white),
                                 ),
                                 TextSpan(
                                   text: 'пользовательским соглашением',
-                                  style: TextStyle(color: Colors.blue), // Цвет текста ссылки
+                                  style: const TextStyle(color: Colors.blue), // Цвет текста ссылки
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () async {
                                       // Открываем ссылку на пользовательское соглашение
